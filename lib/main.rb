@@ -1,13 +1,18 @@
 require 'sinatra'
 require 'json'
+require 'singleton'
 
-
-tasks = Array.new
+class FakeDB
+  attr_accessor :tasks
+  include Singleton
+  def initialize
+    raw = File.read('data.json')
+    @tasks = JSON.parse(raw)
+  end
+end
 
 configure do
     enable :cross_origin
-    raw = File.read('data.json')
-    tasks = JSON.parse(raw)
 end
 
 before do
@@ -27,7 +32,18 @@ end
 
 get '/tasks' do
     content_type :json
-    tasks.to_json
+    FakeDB.instance.tasks.to_json
+end
+
+# curl -X POST http://localhost:4567/tasks/add -H 'Content-Type: application/json' -d '{"task":{"title":"Work harder","done":false}}'
+post '/tasks/add' do
+    payload = JSON.parse(request.body.read)
+    FakeDB.instance.tasks << payload
+    write_out 
+end
+
+def write_out
+    File.write('data.json', JSON.dump(FakeDB.instance.tasks))
 end
 
 
